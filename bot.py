@@ -192,13 +192,12 @@ async def pre_checkout(pq: PreCheckoutQuery) -> None:
 async def successful_payment(message: Message) -> None:
     sp = message.successful_payment
     user_id = int(sp.invoice_payload)
-    now = int(time.time())
-    if not db.add_purchase(sp.telegram_payment_charge_id, user_id,
-                           sp.total_amount):
+    # Атомарно: покупка + премиум одной транзакцией (db.apply_purchase)
+    until = db.apply_purchase(sp.telegram_payment_charge_id, user_id,
+                              sp.total_amount, int(time.time()))
+    if until is None:
         await message.answer("Эта оплата уже активирована ✓")
         return
-    until = limits.extend_premium(db.get_premium_until(user_id), now)
-    db.set_premium_until(user_id, until)
     await message.answer(texts.premium_activated(until))
 
 

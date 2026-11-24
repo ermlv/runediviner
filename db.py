@@ -8,6 +8,7 @@ import time
 from contextlib import contextmanager
 
 import config as C
+import limits
 
 
 @contextmanager
@@ -112,15 +113,34 @@ def set_premium_until(user_id: int, until: int) -> None:
         )
 
 
-def add_purchase(charge_id: str, user_id: int, stars: int) -> bool:
-    """False — такой charge_id уже обработан (дедуп повторной доставки)."""
+def apply_purchase(charge_id: str, user_id: int, stars: int, now: int) -> int | None:
+    """Одна транзакция: записать покупку И выдать/продлить премиум.
+
+    Смерть процесса между операциями недопустима — списанные звёзды
+    обязаны давать премиум. None — такой charge_id уже обработан
+    (дедуп повторной доставки), премиум не трогается.
+    """
     with _db() as conn:
         cur = conn.execute(
             "INSERT OR IGNORE INTO purchases (charge_id, user_id, stars, created_at)"
             " VALUES (?, ?, ?, ?)",
-            (charge_id, user_id, stars, int(time.time())),
+            (charge_id, user_id, stars, now),
         )
-        return cur.rowcount == 1
+        if cur.rowcount != 1:
+            return None
+        row = conn.execute(
+            "SELECT premium_until FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        current = int(row[0]) if row else 0
+        until = limits.extend_premium(current, now)
+        conn.execute(
+            """INSERT INTO users (user_id, premium_until, created_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT(user_id) DO UPDATE SET
+                 premium_until = excluded.premium_until""",
+            (user_id, until, now),
+        )
+        return until
 
 
 # --- статистика ---------------------------------------------------------
