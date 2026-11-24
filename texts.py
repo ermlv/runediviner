@@ -4,6 +4,7 @@
 результата, Предостережение Фрейи). Сборщики экранируют подстановки
 (html) под HTML parse_mode; статические заголовки — жирные <b>.
 """
+import datetime
 import html
 
 from runes import rune_meaning, rune_text
@@ -130,3 +131,37 @@ FREYA_WARNING = (
 MENU_HINT = "Выберите действие кнопкой внизу 👇"
 
 STALE_HINT = "Эта кнопка больше не активна. Вот меню 👇"
+
+# --- лимиты и Stars ------------------------------------------------------
+LIMIT_REACHED = (
+    "На этой неделе уже 2 расклада ✋\n\n"
+    "Бесплатно — 2 расклада в неделю. Если хотите гадать каждый день — "
+    "купите безлимит: ⭐ 30 звёзд на неделю."
+)
+
+PREMIUM_INVOICE_TITLE = "Безлимит на неделю"
+
+PREMIUM_INVOICE_DESCRIPTION = (
+    "Бесплатно — 2 расклада в неделю. С безлимитом гадайте каждый день. "
+    "Действует 7 дней."
+)
+
+
+def premium_activated(until_ts: int) -> str:
+    date = datetime.datetime.fromtimestamp(until_ts).strftime("%d.%m")
+    return (f"✅ Безлимит активирован до {date} — "
+            "гадайте каждый день. ⭐")
+
+
+def _plural(n: int, one: str, few: str, many: str) -> str:
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+def after_draw_hint(remaining: int) -> str:
+    word = _plural(remaining, "расклад", "расклада", "раскладов")
+    return (f"Осталось {remaining} {word} на этой неделе. "
+            "Если нужно больше — ⭐ безлимит на неделю.")

@@ -42,3 +42,9 @@ FREYA = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="Понятно, подожду", callback_data="draw:cancel")],
     [InlineKeyboardButton(text="Всё равно гадать", callback_data="draw:again")],
 ])
+
+# --- покупка безлимита (Telegram Stars) ----------------------------------
+BUY_PREMIUM = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="⭐ Безлимит на неделю — 30 звёзд",
+                          callback_data="pay:stars")],
+])

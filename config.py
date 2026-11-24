@@ -30,6 +30,11 @@ TG_API_IP = os.getenv("TG_API_IP", "")
 # Telegram ID владельца: команда /stats отвечает только ему.
 ADMIN_ID = int(os.getenv("ADMIN_ID", "3588541"))
 
+# --- Лимиты и Stars -------------------------------------------------------
+WEEKLY_FREE_LIMIT = 2   # бесплатных раскладов за скользящие7 дней
+PREMIUM_STARS = 30       # цена безлимита на неделю, Telegram Stars
+PREMIUM_DAYS = 7         # срок безлимита после оплаты, дней
+
 # --- Хранилище (bothost: /app/data переживает обновления кода из Git) ---
 DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
 try:
