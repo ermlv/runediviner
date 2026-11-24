@@ -1,0 +1,111 @@
+# Бот «Гадание на Трёх Рунах» (Telegram, @runediviner_bot)
+
+Расклад «Три Норны» в Telegram — бот-дублёр приложения app-runes:
+3 руны (прошлое → настоящее → будущее), без повторов, 30% шанс
+перевёрнутой позиции, тексты — из `src/data/runes.ts`.
+
+Стек: **Python 3.11+, aiogram 3, SQLite** (по образцу penjoy-bot).
+Хостинг: **bothost.ru**. Дизайн: `../docs/superpowers/specs/2026-11-24-rune-bot-design.md`.
+
+## Структура
+
+```
+bot/
+├── bot.py           # точка входа: хендлеры, FSM расклада, polling
+├── config.py        # BOT_TOKEN, ADMIN_ID, TG_API_IP, путь к базе
+├── runes.py         # логика выбора рун (без повторов, 30%, fallback текстов)
+├── texts.py         # все тексты (дословно из src/App.tsx)
+├── kb.py            # клавиатуры (меню, расклад, результат, Фрейя)
+├── db.py            # SQLite: users, draws
+├── tgip.py          # локальная подмена DNS (см. «Бот не может соединиться»)
+├── runes.json       # ГЕНЕРИРУЕТСЯ из src/data/runes.ts — руками не править
+├── requirements.txt # aiogram
+└── tests/           # pytest (в деплой не попадает)
+```
+
+## Локальный запуск
+
+```bash
+cd bot
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+cp .env.example .env        # вписать BOT_TOKEN
+.venv/bin/python bot.py     # polling
+```
+
+Если системный Python собран без `sqlite3` (`ModuleNotFoundError: No module
+named 'sqlite3'`), возьмите полный интерпретатор через uv:
+
+```bash
+uv python install 3.12
+uv venv .venv --python ~/.local/share/uv/python/cpython-3.12-linux-x86_64-gnu/bin/python3.12
+uv pip install --python .venv/bin/python -r requirements.txt -r requirements-dev.txt
+```
+
+Тесты: `cd bot && .venv/bin/python -m pytest -q`
+
+## Правило текстов
+
+Тексты рун живут в **одном месте** — `src/data/runes.ts`. После любой
+правки выполните из корня репозитория:
+
+```bash
+npm run export:runes    # перегенерирует bot/runes.json
+```
+
+`bot/runes.json` руками не править — правки затрутся следующим экспортом.
+
+## Деплой (git → bothost.ru)
+
+Обновление бота — одна команда из корня репозитория:
+
+```bash
+npm run deploy:bot      # экспорт текстов → копия bot/ → commit → push
+```
+
+Скрипт копирует содержимое `bot/` в локальный клон
+`../runediviner` (путь меняется переменной `DEPLOY_REPO_PATH`) и пушит
+в `main` репозитория **github.com/ermlv/runediviner**. Пуш = авто-деплой
+на bothost. В деплой не попадают: `.env`, `.venv/`, `data/`, `tests/`.
+
+Первоначальная настройка Bothost (делает владелец, один раз):
+
+1. Зарегистрироваться на [bothost.ru](https://bothost.ru) →
+   [Создать бота](https://bothost.ru/create-bot.php): платформа
+   **Telegram**, библиотека **Python (aiogram)**, вставить Bot Token.
+2. Подключить репозиторий `github.com/ermlv/runediviner`, ветка `main`
+   (токен `BOT_TOKEN` платформа подставляет сама).
+3. Главный файл: `bot.py`. Тариф: для постоянной базы — **Basic**
+   (на Starter SQLite стирается при рестарте; сами расклады критичны
+   не теряются — каждый пишется в базу, а бот отвечает всегда).
+4. Запустить и смотреть **Логи**.
+
+Запасной путь (без git): zip-архив содержимого `bot/` (bot.py в корне),
+загрузить в панели вручную.
+
+## Чек-лист проверки
+
+1. `/start` — приветствие + меню, `/stats` (от владельца) отвечает.
+2. «🔮 Расклад Три Норны» → три нажатия: три **разные** руны, позиции
+   по порядку (прошлое → настоящее → будущее), при раскрытии — только
+   символ/имя/ориентация, тексты — в итоговом «Послании Рун».
+3. «✦ Новое гадание ✦» → Предостережение Фрейи → «Всё равно гадать»
+   начинает новый расклад; «Понятно, подожду» возвращает в меню.
+4. Кнопка из прошлого расклада → «Кнопка устарела» + меню.
+5. «ℹ️ Что за расклад» — описание; свободный текст — подсказка с меню.
+
+## Токен и пересоздание бота
+
+Токен живёт в `bot/.env` (в Git не коммитится; на bothost подставляет
+платформа). Если нужно создать бота заново: **@BotFather → /newbot**,
+новый токен — в `bot/.env`, при деплое — в переменную `BOT_TOKEN` bothost.
+
+## Частые проблемы
+
+- **Бот не может соединиться с Telegram** (dns-блокировка на машине):
+  в `bot/.env` добавьте `TG_API_IP=<рабочий IP telegram.org>`, например
+  `TG_API_IP=149.154.167.220`. Локальный воркaround, на bothost не нужен.
+- **«Conflict: terminated by other getUpdates»** — бот запущен ещё
+  где-то (локально + bothost). Оставьте один экземпляр.
+- **«Unauthorized»** — неверный токен в `.env`/панели.
+- **Бот молчит** — смотрите логи; чаще всего ошибка в зависимостях
+  (`requirements.txt`) или не тот главный файл в панели.

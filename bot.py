@@ -11,7 +11,7 @@ import logging
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import Command, CommandStart, StateFilter
+from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
@@ -65,12 +65,14 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 
 
 # ------------------------------------------------------------- меню
-@router.message(StateFilter(None), F.text == "🔮 Расклад Три Норны")
+# Без StateFilter(None): видимые кнопки обязаны отвечать и во время расклада
+# (иначе пользователь видит кнопку без реакции — выглядит как поломка).
+@router.message(F.text == "🔮 Расклад Три Норны")
 async def menu_draw(message: Message, state: FSMContext) -> None:
     await start_draw(message, state)
 
 
-@router.message(StateFilter(None), F.text == "ℹ️ Что за расклад")
+@router.message(F.text == "ℹ️ Что за расклад")
 async def menu_info(message: Message) -> None:
     await message.answer(texts.INFO_TEXT)
 
@@ -159,7 +161,7 @@ async def any_callback(cq: CallbackQuery) -> None:
     await cq.message.answer(texts.STALE_HINT, reply_markup=kb.MENU)
 
 
-@router.message(StateFilter(None), F.text)
+@router.message(F.text)
 async def any_text(message: Message) -> None:
     await message.answer(texts.MENU_HINT, reply_markup=kb.MENU)
 
@@ -168,7 +170,9 @@ async def any_text(message: Message) -> None:
 async def main() -> None:
     db.init_db()
     await bot.delete_webhook(drop_pending_updates=True)  # polling, не webhook
-    await dp.start_polling(bot)
+    # Один апдейт за раз: в draw_pull окно read→sleep(1.5)→write, при
+    # параллельной обработке возможен повтор руны и порча FSM-состояния.
+    await dp.start_polling(bot, tasks_concurrency_limit=1)
 
 
 if __name__ == "__main__":
