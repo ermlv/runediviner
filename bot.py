@@ -5,9 +5,12 @@
 Запуск: python bot.py (polling). Деплой: npm run deploy:bot (см. README.md).
 """
 import asyncio
+import io
 import json
 import logging
 import time
+
+from PIL import Image
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -15,8 +18,8 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import (CallbackQuery, FSInputFile, LabeledPrice, Message,
-                           PreCheckoutQuery)
+from aiogram.types import (BufferedInputFile, CallbackQuery, FSInputFile,
+                           LabeledPrice, Message, PreCheckoutQuery)
 
 import config as C
 import db
@@ -50,6 +53,18 @@ class DrawSG(StatesGroup):
 
 
 # ------------------------------------------------------------- helpers
+def rune_photo(rune_id: int, is_reversed: bool) -> BufferedInputFile:
+    """Тайл руны как файл для sendPhoto; перевёрнутая — поворот на180°."""
+    path = C.RUNES_DIR / f"rune-{rune_id:02d}.jpg"
+    data = path.read_bytes()
+    if is_reversed:
+        buf = io.BytesIO()
+        Image.open(io.BytesIO(data)).rotate(180).save(buf, format="JPEG",
+                                                      quality=85)
+        data = buf.getvalue()
+    return BufferedInputFile(data, filename=path.name)
+
+
 async def start_draw(target: Message, state: FSMContext, user_id: int) -> None:
     """Начать расклад с нуля: позиция past, ещё ничего не вытянуто.
 
@@ -109,7 +124,10 @@ async def draw_pull(cq: CallbackQuery, state: FSMContext) -> None:
 
     if pos == "future":
         # последняя руна: раскрытие без кнопки, затем итог
-        await cq.message.answer(texts.reveal_message(rune, pos, is_reversed))
+        await cq.message.answer_photo(
+            photo=rune_photo(rune["id"], is_reversed),
+            caption=texts.reveal_message(rune, pos, is_reversed),
+        )
         payload = [{"id": d["rune"]["id"], "position": d["position"],
                     "is_reversed": d["is_reversed"]} for d in drawn]
         db.add_draw(cq.from_user.id, json.dumps(payload, ensure_ascii=False))
@@ -130,8 +148,11 @@ async def draw_pull(cq: CallbackQuery, state: FSMContext) -> None:
 
     nxt = ORDER[ORDER.index(pos) + 1]
     await state.update_data(drawn=drawn, pos=nxt)
-    await cq.message.answer(texts.reveal_message(rune, pos, is_reversed),
-                            reply_markup=kb.pull_kb(nxt))
+    await cq.message.answer_photo(
+        photo=rune_photo(rune["id"], is_reversed),
+        caption=texts.reveal_message(rune, pos, is_reversed),
+        reply_markup=kb.pull_kb(nxt),
+    )
 
 
 # --------------------------------------------------- новое гадание + Фрейя

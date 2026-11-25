@@ -52,3 +52,5 @@ DB_PATH = DATA_DIR / "runes.db"
 # --- Ассеты --------------------------------------------------------------
 # Картинка «Предостережение Фрейи» (отправляется с текстом в подписи).
 FREYA_IMAGE = Path(__file__).resolve().parent / "assets" / "freya-warning.jpg"
+# Нарезанные тайлы рун: rune-01.jpg … rune-24.jpg (порядок = id в runes.ts).
+RUNES_DIR = Path(__file__).resolve().parent / "assets" / "runes"
