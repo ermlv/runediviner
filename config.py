@@ -48,3 +48,7 @@ except Exception:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DB_PATH = DATA_DIR / "runes.db"
+
+# --- Ассеты --------------------------------------------------------------
+# Картинка «Предостережение Фрейи» (отправляется с текстом в подписи).
+FREYA_IMAGE = Path(__file__).resolve().parent / "assets" / "freya-warning.jpg"

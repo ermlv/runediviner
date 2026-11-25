@@ -15,7 +15,7 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import (CallbackQuery, LabeledPrice, Message,
+from aiogram.types import (CallbackQuery, FSInputFile, LabeledPrice, Message,
                            PreCheckoutQuery)
 
 import config as C
@@ -138,7 +138,11 @@ async def draw_pull(cq: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(F.data == "draw:new")
 async def draw_new(cq: CallbackQuery) -> None:
     await cq.answer()
-    await cq.message.answer(texts.FREYA_WARNING, reply_markup=kb.FREYA)
+    await cq.message.answer_photo(
+        photo=FSInputFile(C.FREYA_IMAGE),
+        caption=texts.FREYA_WARNING,
+        reply_markup=kb.FREYA,
+    )
 
 
 @router.callback_query(F.data == "draw:again")
